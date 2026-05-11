@@ -14,24 +14,43 @@ interface Habit {
   completed: boolean
 }
 
+interface Analytics {
+  total_habits: number
+  completed_today: number
+  average_completion_rate: number
+  best_streak: number
+  productivity_score: number
+}
+
 export default function Dashboard() {
   const { user } = useAuth()
   const [habits, setHabits] = useState<Habit[]>([])
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [aiInsight, setAiInsight] = useState<string>("Analyzing your progress...")
+  const [heatmapData, setHeatmapData] = useState<Record<string, number>>({})
   const [isLoading, setIsLoading] = useState(true)
 
-  const fetchHabits = async () => {
+  const fetchData = async () => {
     try {
-      const { data } = await api.get("/habits/today")
-      setHabits(data)
+      const [habitsRes, analyticsRes, aiRes, heatmapRes] = await Promise.all([
+        api.get("/habits/today"),
+        api.get("/analytics/summary"),
+        api.get("/ai/coach/insight"),
+        api.get("/analytics/heatmap")
+      ])
+      setHabits(habitsRes.data)
+      setAnalytics(analyticsRes.data)
+      setAiInsight(aiRes.data.insight)
+      setHeatmapData(heatmapRes.data)
     } catch (error) {
-      console.error("Failed to fetch habits", error)
+      console.error("Failed to fetch dashboard data", error)
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchHabits()
+    fetchData()
   }, [])
 
   const handleComplete = async (habitId: number) => {
@@ -39,17 +58,59 @@ export default function Dashboard() {
       // Optimistic update
       setHabits(prev => prev.map(h => h.id === habitId ? { ...h, completed: true } : h))
       await api.post(`/habits/${habitId}/log`, { status: "completed", notes: "" })
+      
+      // Refresh analytics, AI insight, and heatmap after completion
+      const [analyticsRes, aiRes, heatmapRes] = await Promise.all([
+        api.get("/analytics/summary"),
+        api.get("/ai/coach/insight"),
+        api.get("/analytics/heatmap")
+      ])
+      setAnalytics(analyticsRes.data)
+      setAiInsight(aiRes.data.insight)
+      setHeatmapData(heatmapRes.data)
     } catch (error) {
       console.error("Failed to complete habit", error)
-      // Revert optimistic update
-      fetchHabits()
+      fetchData()
     }
   }
 
   const completedCount = habits.filter(h => h.completed).length
   const totalCount = habits.length
   const remainingCount = totalCount - completedCount
-  const completionPercentage = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
+  const completionPercentage = analytics?.productivity_score || 0
+
+  // Heatmap calculation
+  const getHeatmapColor = (dateStr: string) => {
+    const count = heatmapData[dateStr] || 0
+    if (count === 0) return "bg-zinc-800/50"
+    if (count < 2) return "bg-indigo-600/40"
+    if (count < 4) return "bg-indigo-500/70"
+    return "bg-indigo-400"
+  }
+
+  const generateHeatmap = () => {
+    const cols = []
+    const today = new Date()
+    
+    // We want to show 20 columns (weeks)
+    for (let c = 19; c >= 0; c--) {
+      const days = []
+      for (let r = 0; r < 7; r++) {
+        const date = new Date(today)
+        date.setDate(today.getDate() - (c * 7 + (6 - r)))
+        const dateStr = date.toISOString().split('T')[0]
+        days.push(
+          <div 
+            key={dateStr} 
+            className={`w-3 h-3 rounded-[2px] ${getHeatmapColor(dateStr)} transition-colors hover:ring-1 ring-indigo-300 cursor-pointer`}
+            title={`${dateStr}: ${heatmapData[dateStr] || 0} completions`}
+          />
+        )
+      }
+      cols.push(<div key={c} className="flex flex-col gap-1">{days}</div>)
+    }
+    return cols
+  }
 
   const container = {
     hidden: { opacity: 0 },
@@ -86,7 +147,7 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2 bg-indigo-500/10 text-indigo-400 px-4 py-2 rounded-xl border border-indigo-500/20">
           <Flame className="w-5 h-5 text-orange-500" />
-          <span className="font-semibold">0 Day Streak</span>
+          <span className="font-semibold">{analytics?.best_streak || 0} Day Streak</span>
         </div>
       </motion.div>
 
@@ -133,27 +194,8 @@ export default function Dashboard() {
 
           <motion.div variants={item} className="bg-[#121216] rounded-2xl border border-zinc-800/50 p-6 shadow-xl">
             <h2 className="text-xl font-semibold text-white mb-6">Consistency Heatmap</h2>
-            {/* Mock GitHub-style Heatmap */}
-            <div className="flex gap-1 overflow-hidden">
-              {Array.from({ length: 30 }).map((_, colIndex) => (
-                <div key={colIndex} className="flex flex-col gap-1">
-                  {Array.from({ length: 7 }).map((_, rowIndex) => {
-                    const intensity = Math.random()
-                    let colorClass = "bg-zinc-800/50" // empty
-                    if (intensity > 0.8) colorClass = "bg-indigo-400"
-                    else if (intensity > 0.5) colorClass = "bg-indigo-500/70"
-                    else if (intensity > 0.2) colorClass = "bg-indigo-600/40"
-                    
-                    return (
-                      <div 
-                        key={`${colIndex}-${rowIndex}`} 
-                        className={`w-3 h-3 rounded-[2px] ${colorClass} transition-colors hover:ring-1 ring-indigo-300 cursor-pointer`}
-                        title="Completed habits"
-                      />
-                    )
-                  })}
-                </div>
-              ))}
+            <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+              {generateHeatmap()}
             </div>
           </motion.div>
         </div>
@@ -169,7 +211,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-indigo-100">AI Coach</h3>
             </div>
             <p className="text-indigo-200/80 text-sm leading-relaxed mb-4">
-              You're doing great! Try to complete your remaining habits to maintain your momentum. Keep pushing!
+              {aiInsight}
             </p>
             <button className="w-full py-2 bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/30 rounded-lg text-indigo-200 text-sm font-medium transition-colors">
               View Full Analysis

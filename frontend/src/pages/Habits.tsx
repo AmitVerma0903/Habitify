@@ -14,6 +14,7 @@ interface Habit {
 
 export default function Habits() {
   const [habits, setHabits] = useState<Habit[]>([])
+  const [recommendations, setRecommendations] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   
@@ -23,19 +24,23 @@ export default function Habits() {
   const [color, setColor] = useState("text-emerald-400")
   const [icon, setIcon] = useState("🏃‍♂️")
 
-  const fetchHabits = async () => {
+  const fetchData = async () => {
     try {
-      const { data } = await api.get("/habits")
-      setHabits(data)
+      const [habitsRes, recRes] = await Promise.all([
+        api.get("/habits"),
+        api.get("/ai/recommendations")
+      ])
+      setHabits(habitsRes.data)
+      setRecommendations(recRes.data)
     } catch (error) {
-      console.error("Failed to fetch habits", error)
+      console.error("Failed to fetch habits data", error)
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchHabits()
+    fetchData()
   }, [])
 
   const handleCreateHabit = async (e: React.FormEvent) => {
@@ -50,9 +55,21 @@ export default function Habits() {
       })
       setIsModalOpen(false)
       setTitle("")
-      fetchHabits()
+      fetchData()
     } catch (error) {
       console.error("Failed to create habit", error)
+    }
+  }
+
+  const handleAddRecommendation = async (rec: any) => {
+    try {
+      await api.post("/habits", {
+        ...rec,
+        frequency: "daily"
+      })
+      fetchData()
+    } catch (error) {
+      console.error("Failed to add recommended habit", error)
     }
   }
 
@@ -92,6 +109,44 @@ export default function Habits() {
         </button>
       </motion.div>
 
+      {/* AI Recommendations */}
+      {!isLoading && recommendations.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-indigo-900/20 to-purple-900/20 rounded-2xl border border-indigo-500/20 p-6 shadow-xl"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+              <Plus className="w-5 h-5 text-indigo-300" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-indigo-100">AI Recommendations</h2>
+              <p className="text-xs text-indigo-300/70">Suggested habits based on your goals</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recommendations.map((rec, idx) => (
+              <div key={idx} className="bg-[#121216]/50 border border-indigo-500/10 rounded-xl p-4 flex items-center justify-between group hover:border-indigo-500/30 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{rec.icon}</span>
+                  <div>
+                    <h3 className="text-sm font-medium text-white">{rec.title}</h3>
+                    <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-tighter">{rec.category}</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleAddRecommendation(rec)}
+                  className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-indigo-500 hover:text-white"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
@@ -123,7 +178,8 @@ export default function Habits() {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {habits.map((habit) => {
-            const bgClass = `bg-${habit.color.split('-')[1]}-400/10`;
+            const colorPart = habit.color.split('-')[1];
+            const bgClass = `bg-${colorPart}-400/10`;
             return (
               <div key={habit.id} className="bg-[#121216] p-6 rounded-2xl border border-zinc-800/50 shadow-xl flex items-start gap-4 hover:border-zinc-700 transition-colors">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${bgClass.includes('undefined') ? 'bg-indigo-400/10' : bgClass}`}>

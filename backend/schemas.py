@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
@@ -17,6 +18,11 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    timezone: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
@@ -60,3 +66,19 @@ class HabitLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Analytics Schemas ---
+class HabitStats(BaseModel):
+    habit_id: int
+    title: str
+    current_streak: int
+    completion_rate: float # percentage
+    total_completions: int
+
+class AnalyticsSummary(BaseModel):
+    total_habits: int
+    completed_today: int
+    average_completion_rate: float
+    best_streak: int
+    productivity_score: int # 0-100
+    habit_stats: List[HabitStats]

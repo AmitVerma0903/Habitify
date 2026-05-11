@@ -1,12 +1,43 @@
+import { useState, useEffect } from "react"
 import { Link, Outlet, useLocation } from "react-router-dom"
 import { Home, ListTodo, BarChart2, Calendar, Settings, Bell, Search, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "../lib/AuthContext"
+import { api } from "../lib/api"
 
 export default function MainLayout() {
   const location = useLocation()
   const { user, logout } = useAuth()
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [allHabits, setAllHabits] = useState<any[]>([])
+  const [showResults, setShowResults] = useState(false)
+
+  const fetchAllHabits = async () => {
+    try {
+      const { data } = await api.get("/habits")
+      setAllHabits(data)
+    } catch (error) {
+      console.error("Failed to fetch habits for search", error)
+    }
+  }
+
+  useEffect(() => {
+    if (user) fetchAllHabits()
+  }, [user])
+
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setSearchResults([])
+      return
+    }
+    const filtered = allHabits.filter(h => 
+      h.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      h.category.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    setSearchResults(filtered)
+  }, [searchQuery, allHabits])
   
   const navItems = [
     { icon: Home, label: "Dashboard", href: "/" },
@@ -71,9 +102,47 @@ export default function MainLayout() {
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input 
                 type="text" 
-                placeholder="Search habits, tasks..." 
+                placeholder="Search habits..." 
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value)
+                  setShowResults(true)
+                }}
+                onFocus={() => setShowResults(true)}
                 className="w-full bg-zinc-900/50 border border-zinc-800 rounded-full pl-10 pr-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all text-zinc-200 placeholder:text-zinc-500"
               />
+              
+              {/* Search Results Dropdown */}
+              {showResults && searchQuery && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[#121216] border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-50">
+                  <div className="p-2 max-h-64 overflow-y-auto">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((habit) => (
+                        <Link 
+                          key={habit.id} 
+                          to="/habits" 
+                          onClick={() => {
+                            setShowResults(false)
+                            setSearchQuery("")
+                          }}
+                        >
+                          <div className="flex items-center gap-3 p-3 hover:bg-zinc-800/50 rounded-lg transition-colors group">
+                            <span className="text-xl">{habit.icon}</span>
+                            <div>
+                              <p className="text-sm font-medium text-white group-hover:text-indigo-400 transition-colors">{habit.title}</p>
+                              <p className="text-[10px] text-zinc-500 uppercase font-bold">{habit.category}</p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-sm text-zinc-500 italic">
+                        No habits found matching "{searchQuery}"
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           
@@ -82,12 +151,14 @@ export default function MainLayout() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-indigo-500 rounded-full border border-[#121216]" />
             </button>
-            <Button className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2 rounded-full px-5 hidden sm:flex">
-              <Plus className="w-4 h-4" />
-              New Habit
-            </Button>
+            <Link to="/habits">
+              <Button className="bg-indigo-600 hover:bg-indigo-500 text-white gap-2 rounded-full px-5 hidden sm:flex">
+                <Plus className="w-4 h-4" />
+                New Habit
+              </Button>
+            </Link>
             <div className="flex items-center gap-4">
-              <div className="flex flex-col text-right hidden sm:block mr-2">
+              <div className="flex flex-col text-right hidden lg:block mr-2">
                 <span className="block text-sm font-medium text-zinc-200">{user?.name}</span>
                 <span className="block text-xs text-zinc-500">{user?.email}</span>
               </div>

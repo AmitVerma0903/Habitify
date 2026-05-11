@@ -33,28 +33,38 @@ Habitify is a behavioral intelligence and habit-tracking platform designed to he
 
 ---
 
+### 🧠 AI & Analytics Core
+- **AI Coach Intelligence**: Implemented dynamic insights logic to analyze user progress and provide tailored motivational feedback.
+- **AI Habit Recommendations**: Implemented personalized suggestions system based on user categories and behavior.
+- **Real Analytics**: Replaced mock data with real calculations for "Completion Rate", "Streaks", and "Productivity Score".
+- **Consistency Heatmap**: Added real-time activity visualization to the dashboard.
+- **Detailed Analytics**: Implemented area charts using `Recharts` for 7-day performance trends.
+- **Calendar Page**: Added full interactive calendar to view habit history and daily completions.
+
+### 🛠️ Polish & UX
+- **Global Search**: Implemented functional real-time search for habits in the main navigation.
+- **Functional Settings**: Enabled profile updates (name, email) with backend persistence and session refresh.
+- **Optimistic UI**: Added optimistic updates for habit completion and creation for a snappier feel.
+
+---
+
 ## 🏗️ In Progress
 
-- **AI Coach Intelligence**: Currently the "AI Coach" provides static insights; working on integrating actual LLM-based behavioral analysis.
-- **Real Analytics**: Moving from mock data to real calculations for "Completion Rate", "Streaks", and "Productivity Score".
+- **Smart Reminders**: Notification system for habits at risk of breaking streaks.
+- **Mobile Optimization**: Ensuring full responsiveness across all mobile devices.
 
 ---
 
 ## 📅 Roadmap (Upcoming)
 
-### 📊 Phase 2: Data & Insights
-- [ ] **Consistency Heatmap**: Implement real activity visualization using the `habit_logs` data.
-- [ ] **Detailed Analytics**: Add bar/line charts using `Recharts` for habit performance trends.
-- [ ] **Calendar Page**: Full interactive calendar to view history and plan future habits.
-
-### 🤖 Phase 3: AI Intelligence
-- [ ] **AI Habit Recommendations**: Personalized suggestions based on user goals and behavior.
+### 🤖 Phase 4: Advanced Intelligence
 - [ ] **Smart Reminders**: Notification system for habits at risk of breaking streaks.
+- [ ] **AI-Powered Insights**: Integrate with LLM for more natural and deep behavioral analysis.
 
-### 🛠️ Phase 4: Polish & Performance
-- [ ] **Global Search**: Functional search for habits and tasks.
-- [ ] **Profile Settings**: Allow users to update their info, timezone, and preferences.
-- [ ] **Mobile Optimization**: Ensure full responsiveness across all mobile devices.
+### 🛠️ Phase 5: Production & Scale
+- [ ] **Performance Audit**: Optimize frontend bundle and backend queries.
+- [ ] **Dark Mode Customization**: Allow users to pick custom themes and accents.
+- [ ] **Data Export**: Allow users to download their habit history in CSV/JSON.
 
 ---
 

@@ -1,7 +1,23 @@
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { User, Bell, Shield, Paintbrush } from "lucide-react"
+import { User, Bell, Shield, Paintbrush, Loader2, CheckCircle2, AlertCircle } from "lucide-react"
+import { useAuth } from "../lib/AuthContext"
+import { api } from "../lib/api"
 
 export default function Settings() {
+  const { user, refreshUser } = useAuth()
+  const [name, setName] = useState(user?.name || "")
+  const [email, setEmail] = useState(user?.email || "")
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name)
+      setEmail(user.email)
+    }
+  }, [user])
+
   const sections = [
     { id: "profile", icon: User, title: "Profile", description: "Manage your personal information and preferences." },
     { id: "appearance", icon: Paintbrush, title: "Appearance", description: "Customize the look and feel of the app." },
@@ -9,6 +25,23 @@ export default function Settings() {
     { id: "privacy", icon: Shield, title: "Privacy & Security", description: "Control your data and account security." },
   ]
 
+  const handleSave = async () => {
+    setIsSaving(true)
+    setMessage(null)
+    try {
+      await api.put("/auth/me", { name, email })
+      await refreshUser()
+      setMessage({ type: 'success', text: "Profile updated successfully!" })
+    } catch (error: any) {
+      console.error("Failed to update profile", error)
+      setMessage({ 
+        type: 'error', 
+        text: error.response?.data?.detail || "Failed to update profile. Please try again." 
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
       <motion.div 
@@ -44,10 +77,20 @@ export default function Settings() {
           className="flex-1 bg-[#121216] rounded-2xl border border-zinc-800/50 p-8 shadow-xl"
         >
           <h2 className="text-xl font-semibold text-white mb-6">Profile Information</h2>
+          
+          {message && (
+            <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 border ${
+              message.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+            }`}>
+              {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+              <span className="text-sm font-medium">{message.text}</span>
+            </div>
+          )}
+
           <div className="space-y-6">
             <div className="flex items-center gap-6">
               <div className="w-20 h-20 rounded-full bg-zinc-800 border-2 border-indigo-500/50 overflow-hidden">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" className="w-full h-full object-cover" />
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Felix'}`} alt="Profile" className="w-full h-full object-cover" />
               </div>
               <button className="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                 Change Avatar
@@ -59,7 +102,8 @@ export default function Settings() {
                 <label className="text-sm font-medium text-zinc-400">Display Name</label>
                 <input 
                   type="text" 
-                  defaultValue="Felix"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50"
                 />
               </div>
@@ -67,15 +111,21 @@ export default function Settings() {
                 <label className="text-sm font-medium text-zinc-400">Email Address</label>
                 <input 
                   type="email" 
-                  defaultValue="felix@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-200 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50"
                 />
               </div>
             </div>
 
             <div className="pt-4 border-t border-zinc-800/50 flex justify-end">
-              <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium transition-colors">
-                Save Changes
+              <button 
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isSaving ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>
